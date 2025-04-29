@@ -3,16 +3,15 @@ package com.libraryhub.book.controller;
 import com.libraryhub.book.model.Book;
 import com.libraryhub.book.response.ApiResponse;
 import com.libraryhub.book.service.BookService;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
@@ -82,23 +81,13 @@ public class BookController {
     }
 
     @GetMapping("/download/{id}")
-    public ResponseEntity<Void> downloadBook(@PathVariable Long id) {
-        Optional<Book> optionalBook = Optional.ofNullable(bookService.getBookById(id));
-        if (optionalBook.isEmpty()) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<byte[]> downloadBook(@PathVariable Long id) {
+        try {
+            return bookService.downloadBookById(id);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to download file".getBytes());
         }
-
-        Book book = optionalBook.get();
-
-        // Increment download count
-        //book.setDownloadCount(book.getDownloadCount() + 1);
-
-        // Redirect to the actual Cloudinary URL
-        URI cloudinaryUrl = URI.create(book.getDownloadUrl());
-        System.out.println("Before Download URL " + book.getDownloadUrl());
-        System.out.println("Download URI " + cloudinaryUrl);
-        return ResponseEntity.status(HttpStatus.FOUND).location(cloudinaryUrl).build();
     }
-
-
 }

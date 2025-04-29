@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.List;
 import java.util.Map;
@@ -111,26 +112,25 @@ public class BookServiceImpl implements BookService {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new FileNotFoundException("Book not found with ID: " + id));
 
-        String fileUrl = book.getDownloadUrl();
+        String fileUrl = URLDecoder.decode(book.getDownloadUrl(), "UTF-8");
 
-        // Fetch file content from Cloudinary URL
+        // Fetch file content from Cloudinary
         RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<byte[]> response = restTemplate.getForEntity(fileUrl, byte[].class);
+        ResponseEntity<byte[]> cloudResponse = restTemplate.getForEntity(fileUrl, byte[].class);
 
-        if (response.getStatusCode() != HttpStatus.OK) {
+        if (cloudResponse.getStatusCode() != HttpStatus.OK || cloudResponse.getBody() == null) {
             throw new IOException("Failed to download file from Cloudinary");
         }
 
-        byte[] fileContent = response.getBody();
-
+        // Build NEW headers (do NOT modify existing ones)
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDisposition(ContentDisposition
                 .attachment()
                 .filename(book.getFileName())
                 .build());
+        headers.setContentLength(cloudResponse.getBody().length);
 
-        return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
+        return new ResponseEntity<>(cloudResponse.getBody(), headers, HttpStatus.OK);
     }
-
 }
