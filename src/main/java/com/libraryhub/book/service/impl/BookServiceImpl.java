@@ -65,6 +65,11 @@ public class BookServiceImpl implements BookService {
     }
 
     @Override
+    public void saveBook(Book book) {
+        bookRepository.save(book);
+    }
+
+    @Override
     public Book getBookById(Long id) {
         return bookRepository.findById(id).orElse(null);
     }
@@ -121,6 +126,10 @@ public class BookServiceImpl implements BookService {
         if (cloudResponse.getStatusCode() != HttpStatus.OK || cloudResponse.getBody() == null) {
             throw new IOException("Failed to download file from Cloudinary");
         }
+
+        // Increment the download count
+        book.setDownloadCount(book.getDownloadCount() + 1);
+        bookRepository.save(book);
 
         // Build NEW headers (do NOT modify existing ones)
         HttpHeaders headers = new HttpHeaders();

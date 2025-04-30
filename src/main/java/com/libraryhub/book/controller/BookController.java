@@ -90,4 +90,17 @@ public class BookController {
                     .body("Failed to download file".getBytes());
         }
     }
+
+    @PutMapping("/books/increment-download/{id}")
+    public ResponseEntity<?> incrementDownloadCount(@PathVariable Long id) {
+        Optional<Book> optionalBook = Optional.ofNullable(bookService.getBookById(id));
+        if (optionalBook.isPresent()) {
+            Book book = optionalBook.get();
+            book.setDownloadCount(book.getDownloadCount() + 1);
+            bookService.saveBook(book);
+            return ResponseEntity.ok("Download count incremented");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Book not found");
+        }
+    }
 }

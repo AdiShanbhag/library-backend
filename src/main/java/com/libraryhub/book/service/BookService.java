@@ -11,6 +11,8 @@ public interface BookService {
 
     Book saveBook(MultipartFile file, String title, String author, String description) throws IOException;
 
+    void saveBook(Book book);
+
     Book getBookById(Long id);
 
     List<Book> getAllBooks();

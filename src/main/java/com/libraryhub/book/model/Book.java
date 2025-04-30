@@ -20,5 +20,7 @@ public class Book {
     private String description;
     private String fileName;     // Actual PDF file name stored
     private String downloadUrl;  // Link to download
-    //private int downloadCount = 0;
+    @Column(name = "download_count")
+    private int downloadCount = 0;
+
 }
