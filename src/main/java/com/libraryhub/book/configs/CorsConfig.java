@@ -13,7 +13,10 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("https://adishanbhag.github.io")  // Replace with your GitHub Pages URL
+                        .allowedOrigins(
+                                "http://localhost:3000",
+                                "https://thenovelspot.netlify.app"
+                        )
                         .allowedMethods("*"); // Allow all methods like POST, GET, etc
             }
         };
