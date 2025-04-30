@@ -2,6 +2,9 @@ package com.libraryhub.book.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "books")
@@ -20,7 +23,8 @@ public class Book {
     private String description;
     private String fileName;     // Actual PDF file name stored
     private String downloadUrl;  // Link to download
-    @Column(name = "download_count")
     private int downloadCount = 0;
+    @CreationTimestamp
+    private LocalDateTime createdAt;
 
 }
