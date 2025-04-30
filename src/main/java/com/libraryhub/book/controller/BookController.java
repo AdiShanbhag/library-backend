@@ -103,4 +103,27 @@ public class BookController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Book not found");
         }
     }
+
+    @GetMapping("/search/author")
+    public ResponseEntity<List<Book>> searchBooksByAuthor(@RequestParam("author") String author) {
+        List<Book> books = bookService.searchBooksByAuthor(author);
+        return new ResponseEntity<>(books, HttpStatus.OK);
+    }
+
+    @GetMapping("/search/title")
+    public ResponseEntity<List<Book>> searchBooksByTitle(@RequestParam("title") String title) {
+        List<Book> books = bookService.searchBooksByTitle(title);
+        return new ResponseEntity<>(books, HttpStatus.OK);
+    }
+
+    @GetMapping("/sorted/title")
+    public ResponseEntity<List<Book>> getBooksSortedByTitle() {
+        return new ResponseEntity<>(bookService.getBooksSortedByTitle(), HttpStatus.OK);
+    }
+
+    @GetMapping("/sorted/latest")
+    public ResponseEntity<List<Book>> getBooksSortedByLatest() {
+        return new ResponseEntity<>(bookService.getBooksSortedByLatest(), HttpStatus.OK);
+    }
+
 }

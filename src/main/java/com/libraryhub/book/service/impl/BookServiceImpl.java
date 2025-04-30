@@ -142,4 +142,22 @@ public class BookServiceImpl implements BookService {
 
         return new ResponseEntity<>(cloudResponse.getBody(), headers, HttpStatus.OK);
     }
+
+    @Override
+    public List<Book> searchBooksByAuthor(String author) {
+        return bookRepository.findByAuthorContainingIgnoreCase(author);
+    }
+
+    @Override
+    public List<Book> searchBooksByTitle(String title) {
+        return bookRepository.findByTitleContainingIgnoreCase(title);
+    }
+
+    public List<Book> getBooksSortedByTitle() {
+        return bookRepository.findAllByOrderByTitleAsc();
+    }
+
+    public List<Book> getBooksSortedByLatest() {
+        return bookRepository.findAllByOrderByCreatedAtDesc();
+    }
 }

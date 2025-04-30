@@ -22,4 +22,14 @@ public interface BookService {
     public String uploadToCloudinary(MultipartFile file) throws IOException;
 
     ResponseEntity<byte[]> downloadBookById(Long id) throws IOException;
+
+    List<Book> searchBooksByAuthor(String author);
+
+    List<Book> searchBooksByTitle(String title);
+
+    // New methods for sorting
+    List<Book> getBooksSortedByTitle();         // A-Z for browse page
+
+    List<Book> getBooksSortedByLatest();        // Latest to oldest for homepage
+
 }
