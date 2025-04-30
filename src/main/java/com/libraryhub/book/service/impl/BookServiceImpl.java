@@ -5,6 +5,7 @@ import com.cloudinary.utils.ObjectUtils;
 import com.libraryhub.book.model.Book;
 import com.libraryhub.book.repository.BookRepository;
 import com.libraryhub.book.service.BookService;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,10 +35,26 @@ public class BookServiceImpl implements BookService {
 
     private final String uploadDir = "path_to_upload_directory";  // Not needed for Cloudinary, just for local fallback
 
+    // MIME type mapping based on file extension
+    private static final Map<String, String> EXTENSION_TO_MIME = Map.of(
+            "pdf", "application/pdf",
+            "epub", "application/epub+zip",
+            "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "txt", "text/plain"
+            // Add more types as needed
+    );
     @Override
     public Book saveBook(MultipartFile file, String title, String author, String description) throws IOException {
         // Clean the file name
         String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+
+        // ✅ Restrict allowed file types
+        String ext = FilenameUtils.getExtension(originalFilename).toLowerCase();
+        List<String> allowedExtensions = List.of("pdf", "epub", "docx");
+
+        if (!allowedExtensions.contains(ext)) {
+            throw new IllegalArgumentException("Only PDF, EPUB, and DOCX files are allowed.");
+        }
 
         // Convert to snake_case and lower case
         String snakeCaseFileName = originalFilename
@@ -105,7 +124,7 @@ public class BookServiceImpl implements BookService {
         );
 
         Map uploadResult = cloudinary.uploader().upload(file.getBytes(), uploadParams);
-        System.out.println("Upload result: " + uploadResult);
+        //System.out.println("Upload result: " + uploadResult);
         String secureUrl = (String) uploadResult.get("secure_url");
 
         // Replace to make sure download behavior is always enforced
@@ -127,18 +146,25 @@ public class BookServiceImpl implements BookService {
             throw new IOException("Failed to download file from Cloudinary");
         }
 
+        //Determine MIME type from file extension
+        String fileName = book.getFileName();
+        String contentType = Files.probeContentType(Paths.get(fileName));
+        if (contentType == null) {
+            contentType = "application/octet-stream";
+        }
+
+        //Correct headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(contentType));
+        headers.setContentDisposition(ContentDisposition
+                .attachment()
+                .filename(fileName)
+                .build());
+        headers.setContentLength(cloudResponse.getBody().length);
+
         // Increment the download count
         book.setDownloadCount(book.getDownloadCount() + 1);
         bookRepository.save(book);
-
-        // Build NEW headers (do NOT modify existing ones)
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDisposition(ContentDisposition
-                .attachment()
-                .filename(book.getFileName())
-                .build());
-        headers.setContentLength(cloudResponse.getBody().length);
 
         return new ResponseEntity<>(cloudResponse.getBody(), headers, HttpStatus.OK);
     }
