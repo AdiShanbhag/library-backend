@@ -125,5 +125,4 @@ public class BookController {
     public ResponseEntity<List<Book>> getBooksSortedByLatest() {
         return new ResponseEntity<>(bookService.getBooksSortedByLatest(), HttpStatus.OK);
     }
-
 }
