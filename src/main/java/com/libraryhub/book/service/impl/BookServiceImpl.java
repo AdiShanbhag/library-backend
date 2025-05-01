@@ -7,18 +7,19 @@ import com.libraryhub.book.repository.BookRepository;
 import com.libraryhub.book.service.BookService;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,13 +28,17 @@ import java.util.Optional;
 @Service
 public class BookServiceImpl implements BookService {
 
-    @Autowired
-    private BookRepository bookRepository;
+    @Value("${storage.mode}")
+    private String storageMode;
+
+    @Value("${file.upload-dir}")
+    private String uploadDir;
 
     @Autowired
     private Cloudinary cloudinary;
 
-    private final String uploadDir = "path_to_upload_directory";  // Not needed for Cloudinary, just for local fallback
+    @Autowired
+    private BookRepository bookRepository;
 
     // MIME type mapping based on file extension
     private static final Map<String, String> EXTENSION_TO_MIME = Map.of(
@@ -48,7 +53,7 @@ public class BookServiceImpl implements BookService {
         // Clean the file name
         String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
 
-        // ✅ Restrict allowed file types
+        //Restrict allowed file types
         String ext = FilenameUtils.getExtension(originalFilename).toLowerCase();
         List<String> allowedExtensions = List.of("pdf", "epub", "docx");
 
@@ -67,9 +72,13 @@ public class BookServiceImpl implements BookService {
         if (existingBook.isPresent()) {
             throw new FileAlreadyExistsException("The book you are trying to upload, already exists");
         }
+        String downloadUrl;
 
-        // Upload the file to Cloudinary and get the download URL
-        String cloudinaryUrl = uploadToCloudinary(file);
+        if ("cloudinary".equalsIgnoreCase(storageMode)) {
+            downloadUrl = uploadToCloudinary(file);
+        } else {
+            downloadUrl = saveToLocal(file, snakeCaseFileName);
+        }
 
         // Save the book metadata
         Book book = Book.builder()
@@ -77,10 +86,22 @@ public class BookServiceImpl implements BookService {
                 .author(author)
                 .description(description)
                 .fileName(snakeCaseFileName)
-                .downloadUrl(cloudinaryUrl)
+                .downloadUrl(downloadUrl)
+                .createdAt(LocalDateTime.now())
                 .build();
 
         return bookRepository.save(book);
+    }
+
+    private String saveToLocal(MultipartFile file, String fileName) throws IOException {
+        java.nio.file.Path uploadPath = Paths.get(uploadDir);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        java.nio.file.Path filePath = uploadPath.resolve(fileName);
+        Files.copy(file.getInputStream(), filePath);
+        return "/local-files/" + fileName; // Your frontend/backend should expose this properly
     }
 
     @Override
@@ -104,6 +125,10 @@ public class BookServiceImpl implements BookService {
         if (book != null) {
             // Delete the file from Cloudinary if needed (optional, but could be done)
             cloudinary.uploader().destroy(book.getFileName(), ObjectUtils.emptyMap());
+
+            if (!"cloudinary".equalsIgnoreCase(storageMode)) {
+                Files.deleteIfExists(Paths.get(uploadDir).resolve(book.getFileName()));
+            }
 
             // Remove book metadata from DB
             bookRepository.delete(book);
@@ -136,37 +161,46 @@ public class BookServiceImpl implements BookService {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new FileNotFoundException("Book not found with ID: " + id));
 
-        String fileUrl = URLDecoder.decode(book.getDownloadUrl(), "UTF-8");
+        byte[] fileContent;
+        String fileName = book.getFileName();
 
-        // Fetch file content from Cloudinary
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<byte[]> cloudResponse = restTemplate.getForEntity(fileUrl, byte[].class);
+        if ("cloudinary".equalsIgnoreCase(storageMode)) {
+            String fileUrl = URLDecoder.decode(book.getDownloadUrl(), "UTF-8");
 
-        if (cloudResponse.getStatusCode() != HttpStatus.OK || cloudResponse.getBody() == null) {
-            throw new IOException("Failed to download file from Cloudinary");
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<byte[]> cloudResponse = restTemplate.getForEntity(fileUrl, byte[].class);
+
+            if (cloudResponse.getStatusCode() != HttpStatus.OK || cloudResponse.getBody() == null) {
+                throw new IOException("Failed to download file from Cloudinary");
+            }
+
+            fileContent = cloudResponse.getBody();
+        } else {
+            java.nio.file.Path filePath = Paths.get(uploadDir).resolve(fileName);
+            if (!Files.exists(filePath)) {
+                throw new FileNotFoundException("Local file not found: " + fileName);
+            }
+
+            fileContent = Files.readAllBytes(filePath);
         }
 
-        //Determine MIME type from file extension
-        String fileName = book.getFileName();
-        String contentType = Files.probeContentType(Paths.get(fileName));
+        // ✅ Correct extension and MIME type logic
+        String ext = FilenameUtils.getExtension(fileName).toLowerCase();
+        String contentType = EXTENSION_TO_MIME.getOrDefault(ext, Files.probeContentType(Paths.get(fileName)));
         if (contentType == null) {
             contentType = "application/octet-stream";
         }
 
-        //Correct headers
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType(contentType));
-        headers.setContentDisposition(ContentDisposition
-                .attachment()
-                .filename(fileName)
-                .build());
-        headers.setContentLength(cloudResponse.getBody().length);
+        headers.setContentDisposition(ContentDisposition.attachment().filename(fileName).build());
+        headers.setContentLength(fileContent.length);
 
-        // Increment the download count
+        // ✅ Increment download count
         book.setDownloadCount(book.getDownloadCount() + 1);
         bookRepository.save(book);
 
-        return new ResponseEntity<>(cloudResponse.getBody(), headers, HttpStatus.OK);
+        return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
     }
 
     @Override

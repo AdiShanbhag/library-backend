@@ -17,7 +17,8 @@ public class CorsConfig {
                                 "http://localhost:3000",
                                 "https://thenovelspot.netlify.app"
                         )
-                        .allowedMethods("*"); // Allow all methods like POST, GET, etc
+                        .allowedMethods("*") // Allow all methods like POST, GET, etc
+                        .exposedHeaders("Content-Disposition");
             }
         };
     }
