@@ -3,6 +3,7 @@ package com.libraryhub.book.controller;
 import com.libraryhub.book.model.Book;
 import com.libraryhub.book.response.ApiResponse;
 import com.libraryhub.book.service.BookService;
+import com.libraryhub.book.utility.PdfMetadataExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +25,13 @@ public class BookController {
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadBook(
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("title") String title,
+            @RequestParam("author") String author,
+            @RequestParam("description") String description) throws IOException {
 
-        // Save the book with Cloudinary URL instead of local path
-        Book uploadedBook = bookService.saveBook(file);
+        // Save the book with metadata from frontend
+        Book uploadedBook = bookService.saveBook(file, title, author, description);
 
         ApiResponse<Book> response = new ApiResponse<>(
                 HttpStatus.CREATED.value(),
@@ -36,6 +40,13 @@ public class BookController {
         );
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @PostMapping("/extract-metadata")
+    public ResponseEntity<?> extractMetadata(@RequestParam("file") MultipartFile file) throws IOException {
+        PdfMetadataExtractor.ExtractedMetadata metadata = PdfMetadataExtractor.extractMetadata(file);
+
+        return ResponseEntity.ok(metadata);
     }
 
     @GetMapping("/{id}")
