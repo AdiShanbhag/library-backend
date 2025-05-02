@@ -5,6 +5,7 @@ import com.cloudinary.utils.ObjectUtils;
 import com.libraryhub.book.model.Book;
 import com.libraryhub.book.repository.BookRepository;
 import com.libraryhub.book.service.BookService;
+import com.libraryhub.book.utility.PdfMetadataExtractor;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,12 +50,22 @@ public class BookServiceImpl implements BookService {
             // Add more types as needed
     );
     @Override
-    public Book saveBook(MultipartFile file, String title, String author, String description) throws IOException {
+    public Book saveBook(MultipartFile file) throws IOException {
+
+        PdfMetadataExtractor.ExtractedMetadata metadata = PdfMetadataExtractor.extractMetadata(file);
+        String probableTitle = metadata.getTitle();
+        String probableAuthor = metadata.getAuthor();
+        String probableDescription = metadata.getDescription();
+
+        System.out.println("Title " + probableTitle);
+        System.out.println("Author " + probableAuthor);
+        System.out.println("Description " + probableDescription);
+
         // Clean the file name
-        String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+        String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(probableTitle));
 
         //Restrict allowed file types
-        String ext = FilenameUtils.getExtension(originalFilename).toLowerCase();
+        String ext = FilenameUtils.getExtension(file.getOriginalFilename()).toLowerCase();
         List<String> allowedExtensions = List.of("pdf", "epub", "docx");
 
         if (!allowedExtensions.contains(ext)) {
@@ -82,9 +93,9 @@ public class BookServiceImpl implements BookService {
 
         // Save the book metadata
         Book book = Book.builder()
-                .title(title)
-                .author(author)
-                .description(description)
+                .title(originalFilename)
+                .author(probableAuthor)
+                .description(probableDescription)
                 .fileName(snakeCaseFileName)
                 .downloadUrl(downloadUrl)
                 .createdAt(LocalDateTime.now())
