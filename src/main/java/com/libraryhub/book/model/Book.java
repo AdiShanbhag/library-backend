@@ -20,6 +20,7 @@ public class Book {
 
     private String title;
     private String author;
+    @Column(columnDefinition = "TEXT")
     private String description;
     private String fileName;     // Actual PDF file name stored
     private String downloadUrl;  // Link to download

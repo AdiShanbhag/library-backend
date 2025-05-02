@@ -4,8 +4,6 @@ import com.libraryhub.book.model.Book;
 import com.libraryhub.book.response.ApiResponse;
 import com.libraryhub.book.service.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,13 +24,10 @@ public class BookController {
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadBook(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("title") String title,
-            @RequestParam("author") String author,
-            @RequestParam("description") String description) throws IOException {
+            @RequestParam("file") MultipartFile file) throws IOException {
 
         // Save the book with Cloudinary URL instead of local path
-        Book uploadedBook = bookService.saveBook(file, title, author, description);
+        Book uploadedBook = bookService.saveBook(file);
 
         ApiResponse<Book> response = new ApiResponse<>(
                 HttpStatus.CREATED.value(),

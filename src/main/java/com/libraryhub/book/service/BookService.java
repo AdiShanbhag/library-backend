@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface BookService {
 
-    Book saveBook(MultipartFile file, String title, String author, String description) throws IOException;
+    Book saveBook(MultipartFile file) throws IOException;
 
     void saveBook(Book book);
 
